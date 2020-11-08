@@ -1,5 +1,7 @@
 package org.wso2.wsdl;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.synapse.Mediator;
 import org.apache.synapse.config.xml.AnonymousListMediator;
 import org.apache.synapse.config.xml.SwitchCase;
 import org.apache.synapse.core.axis2.ProxyService;
@@ -18,12 +20,20 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 public class ProxyGenerator {
-    private static final String PAYLOAD_FACTORY_OPERATION_FORMAT = "<format>Operation %s is not implemented</format>";
-    private static final String PAYLOAD_FACTORY_DEFAULT_FORMAT = "<format>Operation not found</format>";
+    private static final String PAYLOAD_FACTORY_OPERATION_FORMAT = "<message>Action %s is not implemented</message>";
+    private static final String PAYLOAD_FACTORY_ACTION_NOT_FOUND = "<message>Action not implemented</message>";
     private static final String XML_TYPE = "xml";
-    private static final String SOAP_ACTION_PATH = "$trp:SOAPAction";
+    private static final String SOAP_ACTION_PATH = "get-property('Action')";
     private static final ArrayList<String> TRANSPORT_LIST = new ArrayList<String>(Arrays.asList("http", "https"));
 
+    /**
+     * Generates a Synapse ProxyService with a SwitchMediator with the provided SOAP operations
+     *
+     * @param proxyServiceName  Name of the proxy service that needs to be generated
+     * @param operations        List of operations for the Switch cases to be generated
+     * @param wsdlUrl           WSDL URL of the original WebService whose operations were extracted
+     * @return  Synapse Proxy Service with generated SwitchMediator and dummy PayloadFactory mediator
+     */
     public static ProxyService generateProxyWithOperations(String proxyServiceName, List<String> operations, String wsdlUrl) {
         ProxyService proxyService = new ProxyService(proxyServiceName);
         proxyService.setTransports(TRANSPORT_LIST);
@@ -43,6 +53,12 @@ public class ProxyGenerator {
         return proxyService;
     }
 
+    /**
+     * Generates a Switch mediator with Switch cases for each operation provided.
+     *
+     * @param operations List of operations for the Switch cases to be generated
+     * @return Synapse Switch Mediator
+     */
     public static SwitchMediator generateSwitchMediator(List<String> operations) {
         SwitchMediator switchMediator = new SwitchMediator();
         SynapseXPath xpath = null;
@@ -57,28 +73,45 @@ public class ProxyGenerator {
         //Create the switch cases
         for (String operation : operations){
             SwitchCase switchCase = new SwitchCase();
-            switchCase.setRegex(Pattern.compile("\"" + operation + "\""));
-
-            AnonymousListMediator anonymousListMediator = new AnonymousListMediator();
-            anonymousListMediator.addChild(generateEmptyPayloadFactory(operation));
-            switchCase.setCaseMediator(anonymousListMediator);
-            switchMediator.addCase(switchCase);
+            switchCase.setRegex(Pattern.compile(operation));
+            switchMediator.addCase(addSwitchCaseChild(switchCase, genDummyPayloadFacForOperation(operation)));
         }
 
         //create default case for Switch mediator
         SwitchCase defaultSwitchCase = new SwitchCase();
-        PayloadFactoryMediator defaultPf = new PayloadFactoryMediator();
-        defaultPf.setFormat(PAYLOAD_FACTORY_DEFAULT_FORMAT);
-        defaultPf.setType(XML_TYPE);
-        switchMediator.setDefaultCase(defaultSwitchCase);
+        switchMediator.setDefaultCase(addSwitchCaseChild(defaultSwitchCase, genDummyPayloadFacForOperation("")));
 
         return switchMediator;
     }
 
-    public static PayloadFactoryMediator generateEmptyPayloadFactory(String operationName) {
+    /**
+     * Generates a Payload Factory mediator with an inline template with the operation Name in it
+     *
+     * @param operationName Operation Name to be included in the PayloadFactory inline text
+     * @return Synapse PayloadFactory Mediator
+     */
+    public static PayloadFactoryMediator genDummyPayloadFacForOperation(String operationName) {
         PayloadFactoryMediator pf = new PayloadFactoryMediator();
-        pf.setFormat(String.format(PAYLOAD_FACTORY_OPERATION_FORMAT, operationName));
+        if (StringUtils.isEmpty(operationName)) {
+            pf.setFormat(PAYLOAD_FACTORY_ACTION_NOT_FOUND);
+        } else {
+            pf.setFormat(String.format(PAYLOAD_FACTORY_OPERATION_FORMAT, operationName));
+        }
         pf.setType(XML_TYPE);
         return pf;
+    }
+
+    /**
+     * Attaches the provided childMediator to the SwitchCase mediator and returns it
+     *
+     * @param switchCase    SwitchCase to attach the childMediator
+     * @param childMediator Child mediator that was generated
+     * @return  Synapse Switchcase with Child mediator attached
+     */
+    private static SwitchCase addSwitchCaseChild(SwitchCase switchCase, Mediator childMediator) {
+        AnonymousListMediator anonymousListMediator = new AnonymousListMediator();
+        anonymousListMediator.addChild(childMediator);
+        switchCase.setCaseMediator(anonymousListMediator);
+        return switchCase;
     }
 }

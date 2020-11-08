@@ -12,7 +12,7 @@ public class FullWSDLParser {
     public static void main(String[] args) {
         WSDLParser parser = new WSDLParser();
 
-        Definitions defs = parser.parse("https://www.paypalobjects.com/wsdl/PayPalSvc.wsdl");
+        Definitions defs = parser.parse("http://localhost:9000/services/SimpleStockQuoteService?wsdl");
 
         out("-------------- WSDL Details --------------");
         out("TargenNamespace: \t" + defs.getTargetNamespace());
@@ -52,9 +52,8 @@ public class FullWSDLParser {
                 out("    Operation Input Message: "
                         + op.getInput().getMessage().getQname());
                 out("    Operation Output Name: "
-                        + ((op.getOutput().getName() != null) ? op.getOutput().getName() : "not available!"));
-                out("    Operation Output Message: "
-                        + op.getOutput().getMessage().getQname());
+                        + ((op.getOutput() != null) && (op.getOutput().getName() != null) ? op.getOutput().getName() : "not available!"));
+
                 out("    Operation Faults: ");
                 if (op.getFaults().size() > 0) {
                     for (Fault fault : op.getFaults()) {
