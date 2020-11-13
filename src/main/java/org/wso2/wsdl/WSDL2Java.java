@@ -1,36 +1,55 @@
 package org.wso2.wsdl;
 
-import com.predic8.wsdl.*;
+import com.ibm.wsdl.BindingImpl;
+import com.ibm.wsdl.BindingOperationImpl;
+import org.apache.axis2.util.XMLUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.w3c.dom.Document;
+import org.xml.sax.SAXException;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import javax.wsdl.Definition;
+import javax.wsdl.WSDLException;
+import javax.wsdl.factory.WSDLFactory;
+import javax.wsdl.xml.WSDLReader;
+import javax.xml.namespace.QName;
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.*;
 
 public class WSDL2Java {
-    final static WSDLParser parser = new WSDLParser();
+    private static final String QNAME_ACTION = "Action";
 
     /**
      * Retrieves the WSDL from the given URL, parse and get the WSDL definitions
      *
      * @param wsdlUrl URL to retrieve WSDL
-     * @return parsed wsdl definitions
+     * @return parsed wsdl definition
      */
-    public static Definitions parseWSDL(String wsdlUrl) {
-        return parser.parse(wsdlUrl);
+    public static Definition readWSDL(String wsdlUrl)
+            throws IOException, ParserConfigurationException, SAXException, WSDLException {
+        URL wsdlURL = new URL(wsdlUrl);
+        InputStream in = wsdlURL.openConnection().getInputStream();
+        Document doc = XMLUtils.newDocument(in);
+        WSDLReader reader = WSDLFactory.newInstance().newWSDLReader();
+        reader.setFeature("javax.wsdl.importDocuments", true);
+        return reader.readWSDL(getBaseURI(wsdlURL.toString()), doc);
     }
 
     /**
      * Retrieves ServiceNames from the WSDL definitions
      *
-     * @param definitions WSDL definitions to analyze
+     * @param definition WSDL definitions to analyze
      * @return List of Service names found in the WSDL definition
      */
-    public static List<String> getServiceNames(Definitions definitions) {
+    public static List<String> getServiceNames(Definition definition) {
+        Map map = definition.getAllServices();
+        List<QName> serviceQnames = new ArrayList<QName>(map.keySet());
         List<String> serviceNames = new ArrayList<String>();
-        for (Service service : definitions.getServices()) {
-            serviceNames.add(service.getName());
+        for (QName qName : serviceQnames) {
+            serviceNames.add(qName.getLocalPart());
         }
         return serviceNames;
     }
@@ -41,15 +60,32 @@ public class WSDL2Java {
      * @param definitions WSDL definitions to analyze
      * @return List of Operation names found in the WSDL definition
      */
-    public static List<String> getBindingSoapActions(Definitions definitions) {
+    public static List<String> getBindingSoapActions(Definition definitions) {
         Set<String> soapActions = new HashSet<String>();
-        for (Binding binding : definitions.getBindings()) {
-            for (BindingOperation bop : binding.getOperations()) {
-                if (binding.getBinding() instanceof AbstractSOAPBinding) {
-                    if (bop.getOperation() != null) {
-                        String action = bop.getOperation().getSoapAction();
-                        if (StringUtils.isNotEmpty(action)) {
-                            soapActions.add(action);
+        if (definitions.getAllBindings() != null && definitions.getAllBindings().values() != null) {
+            for (Object bindingObj : definitions.getAllBindings().values()) {
+                if (bindingObj instanceof  BindingImpl) {
+                    BindingImpl binding = (BindingImpl) bindingObj;
+                    for (Object bindingOperation : binding.getBindingOperations()) {
+                        if (bindingOperation instanceof BindingOperationImpl) {
+                            BindingOperationImpl bindingOp = (BindingOperationImpl) bindingOperation;
+                            javax.wsdl.Input input = bindingOp.getOperation().getInput();
+                            Map extensionAttr = input.getExtensionAttributes();
+                            for (Object qnameObj : extensionAttr.keySet()) {
+                                if (qnameObj instanceof QName) {
+                                    QName qname = (QName) qnameObj;
+                                    if (QNAME_ACTION.equals(qname.getLocalPart())) {
+                                        Object qNameObj = extensionAttr.get(qnameObj);
+                                        if (qNameObj instanceof QName) {
+                                            String actionValue =
+                                                    ((QName) extensionAttr.get(qnameObj)).getLocalPart();
+                                            if (StringUtils.isNotEmpty(actionValue)) {
+                                                soapActions.add(actionValue);
+                                            };
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -58,19 +94,18 @@ public class WSDL2Java {
         return new ArrayList<String>(soapActions);
     }
 
-    public static List<String> getPortTypes(Definitions definitions) {
-        List<String> portTypeNames = new ArrayList<String>();
-        for (PortType portType : definitions.getPortTypes()) {
-            portTypeNames.add(portType.getName());
+    private static String getBaseURI(String currentURI) {
+        try {
+            File file = new File(currentURI);
+            if (file.exists()) {
+                return file.getCanonicalFile().getParentFile().toURI()
+                        .toString();
+            }
+            String uriFragment = currentURI.substring(0, currentURI
+                    .lastIndexOf("/"));
+            return uriFragment + (uriFragment.endsWith("/") ? "" : "/");
+        } catch (IOException e) {
+            return null;
         }
-        return portTypeNames;
-    }
-
-    public static List<String> getOperations(Definitions definitions, String portType) {
-        List<String> operationNames = new ArrayList<String>();
-        for (Operation operation : definitions.getPortType(portType).getOperations()) {
-            operationNames.add(operation.getName());
-        }
-        return operationNames;
     }
 }
