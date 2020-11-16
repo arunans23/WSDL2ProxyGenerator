@@ -2,6 +2,7 @@ package org.wso2.wsdl;
 
 import com.ibm.wsdl.BindingImpl;
 import com.ibm.wsdl.BindingOperationImpl;
+import com.ibm.wsdl.extensions.soap.SOAPOperationImpl;
 import org.apache.axis2.util.XMLUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.Document;
@@ -20,7 +21,6 @@ import java.net.URL;
 import java.util.*;
 
 public class WSDL2Java {
-    private static final String QNAME_ACTION = "Action";
 
     /**
      * Retrieves the WSDL from the given URL, parse and get the WSDL definitions
@@ -62,27 +62,20 @@ public class WSDL2Java {
      */
     public static List<String> getBindingSoapActions(Definition definitions) {
         Set<String> soapActions = new HashSet<String>();
-        if (definitions.getAllBindings() != null && definitions.getAllBindings().values() != null) {
+        if (definitions.getAllBindings() != null) {
             for (Object bindingObj : definitions.getAllBindings().values()) {
                 if (bindingObj instanceof  BindingImpl) {
                     BindingImpl binding = (BindingImpl) bindingObj;
                     for (Object bindingOperation : binding.getBindingOperations()) {
                         if (bindingOperation instanceof BindingOperationImpl) {
                             BindingOperationImpl bindingOp = (BindingOperationImpl) bindingOperation;
-                            javax.wsdl.Input input = bindingOp.getOperation().getInput();
-                            Map extensionAttr = input.getExtensionAttributes();
-                            for (Object qnameObj : extensionAttr.keySet()) {
-                                if (qnameObj instanceof QName) {
-                                    QName qname = (QName) qnameObj;
-                                    if (QNAME_ACTION.equals(qname.getLocalPart())) {
-                                        Object qNameObj = extensionAttr.get(qnameObj);
-                                        if (qNameObj instanceof QName) {
-                                            String actionValue =
-                                                    ((QName) extensionAttr.get(qnameObj)).getLocalPart();
-                                            if (StringUtils.isNotEmpty(actionValue)) {
-                                                soapActions.add(actionValue);
-                                            };
-                                        }
+                            List extElements = bindingOp.getExtensibilityElements();
+                            for (Object operationImpl : extElements) {
+                                if (operationImpl instanceof SOAPOperationImpl) {
+                                    SOAPOperationImpl soapOperation = (SOAPOperationImpl) operationImpl;
+                                    String soapAction = soapOperation.getSoapActionURI();
+                                    if (StringUtils.isNotEmpty(soapAction)) {
+                                        soapActions.add(soapAction);
                                     }
                                 }
                             }

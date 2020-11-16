@@ -9,7 +9,8 @@ import java.util.List;
 public class App {
     public static void main(String[] args)  {
 
-        String wsdlUrl = "http://localhost:9000/services/SimpleStockQuoteService?wsdl";
+
+        String wsdlUrl = "https://www.paypalobjects.com/wsdl/PayPalSvc.wsdl";
         Definition wsdlDefinition = null;
         try {
             wsdlDefinition = WSDL2Java.readWSDL(wsdlUrl);
