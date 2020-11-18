@@ -10,7 +10,7 @@ public class App {
     public static void main(String[] args)  {
 
 
-        String wsdlUrl = "https://www.paypalobjects.com/wsdl/PayPalSvc.wsdl";
+        String wsdlUrl = "http://www.dneonline.com/calculator.asmx?wsdl";
         Definition wsdlDefinition = null;
         try {
             wsdlDefinition = WSDL2Java.readWSDL(wsdlUrl);

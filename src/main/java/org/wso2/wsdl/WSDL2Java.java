@@ -1,13 +1,13 @@
 package org.wso2.wsdl;
 
-import com.ibm.wsdl.BindingImpl;
-import com.ibm.wsdl.BindingOperationImpl;
 import com.ibm.wsdl.extensions.soap.SOAPOperationImpl;
 import org.apache.axis2.util.XMLUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
+import javax.wsdl.Binding;
+import javax.wsdl.BindingOperation;
 import javax.wsdl.Definition;
 import javax.wsdl.WSDLException;
 import javax.wsdl.factory.WSDLFactory;
@@ -64,11 +64,11 @@ public class WSDL2Java {
         Set<String> soapActions = new HashSet<String>();
         if (definitions.getAllBindings() != null) {
             for (Object bindingObj : definitions.getAllBindings().values()) {
-                if (bindingObj instanceof  BindingImpl) {
-                    BindingImpl binding = (BindingImpl) bindingObj;
+                if (bindingObj instanceof Binding) {
+                    Binding binding = (Binding) bindingObj;
                     for (Object bindingOperation : binding.getBindingOperations()) {
-                        if (bindingOperation instanceof BindingOperationImpl) {
-                            BindingOperationImpl bindingOp = (BindingOperationImpl) bindingOperation;
+                        if (bindingOperation instanceof BindingOperation) {
+                            BindingOperation bindingOp = (BindingOperation) bindingOperation;
                             List extElements = bindingOp.getExtensibilityElements();
                             for (Object operationImpl : extElements) {
                                 if (operationImpl instanceof SOAPOperationImpl) {

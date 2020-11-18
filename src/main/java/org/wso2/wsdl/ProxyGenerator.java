@@ -24,6 +24,7 @@ public class ProxyGenerator {
     private static final String PAYLOAD_FACTORY_ACTION_NOT_FOUND = "<message>Action not implemented</message>";
     private static final String XML_TYPE = "xml";
     private static final String SOAP_ACTION_PATH = "get-property('Action')";
+    private static final String DEFAULT_REGEX = ".*+";
     private static final ArrayList<String> TRANSPORT_LIST = new ArrayList<String>(Arrays.asList("http", "https"));
 
     /**
@@ -79,7 +80,8 @@ public class ProxyGenerator {
 
         //create default case for Switch mediator
         SwitchCase defaultSwitchCase = new SwitchCase();
-        switchMediator.setDefaultCase(addSwitchCaseChild(defaultSwitchCase, genDummyPayloadFacForOperation("")));
+        defaultSwitchCase.setRegex(Pattern.compile(DEFAULT_REGEX));
+        switchMediator.addCase(addSwitchCaseChild(defaultSwitchCase, genDummyPayloadFacForOperation("")));
 
         return switchMediator;
     }
